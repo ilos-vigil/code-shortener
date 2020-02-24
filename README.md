@@ -2,20 +2,83 @@
 
 > **This application intended for internal usage**
 
-Code Shortener is simple CLI application to save your money made with [click]([44](https://github.com/pallets/click)) library
+Code Shortener is simple CLI application to save your money made with [click](https://click.palletsprojects.com/en/7.x/) and [python-docx](https://python-docx.readthedocs.io/en/latest/) library
+
+## Requirement
+
+* Python 3
+* Click
+* Python-docx
+
+```
+pip install click python-docx
+```
+
+## Bug / Missing Feature
+
+* Automated page numbering on footer
+* Sometimes character 'ï»¿' appears
 
 ## Usage
 
 ```
-main.py main.py [OPTIONS] PATH [[Semicolon|Markup]]
+Usage: main.py [OPTIONS] PATH
+
+  Simple program that save your money
+
+Options:
+  --markup                 Indicate code is markup
+  --max-char INTEGER       Maximum character in a line.
+  --max-semicolon INTEGER  Maximum semicolon in a line.
+  --to-docx                Generate .docx contains shortened code
+  --docx-name TEXT
+  --docx-id TEXT
+  --docx-title TEXT
+  --help                   Show this message and exit.
 ```
 
-### Example
+### Basic example
+
+* Shorten single semicolon file
 
 ```
-main.py ./index.php
+python main.py ./index.php
 ```
 
+* Shotern single markup file
+
 ```
-main.py ./index.php semicolon
+python main.py ./index.html --markup
+```
+
+* Shorten semicolon files in directory
+
+```
+python main.py ./model
+```
+
+* Shorten markup files in directory
+
+```
+python main.py ./view --markup
+```
+
+### Advance example
+
+* Shorten single semicolon file, configure max char & configure max semicolon
+
+```
+python main.py ./index.php --max_char=120 --max_semicolon=4
+```
+
+* Create .docx from semicolon
+
+```
+python main.py ./src --to-docx --docx-name="Bob" --docx-id=123 --docx-title="Fibonacci Code"
+```
+
+* Create .docx from markup
+
+```
+python main.py ./view --markup --to-docx --docx-name="Bob" --docx-id=123 --docx-title="Web UI"
 ```

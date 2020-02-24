@@ -1,67 +1,203 @@
 import click
+import os
+import re
+import docx
+from docx.shared import Cm, Pt
+from docx.enum.text import WD_LINE_SPACING
 
-@click.command()
-@click.argument('path', type=click.Path(exists=True))
-@click.argument('category', type=click.Choice(['Semicolon', 'Markup'], case_sensitive=False), default='semicolon')
-def main(path, category):
-    """Simple program that save your money"""
-    # 1. Input & Output file
-    input_file_path = path
-    input_file_extension = input_file_path[input_file_path.rfind('.') + 1:]
-    input_file_path_without_extenstion = path[0:path.rfind('.')]
-    output_file_path = input_file_path_without_extenstion + \
-        "_output." + input_file_extension
-    output = open(output_file_path, 'w')
-    input = open(path, 'r').readlines()
+MAX_CHAR = 90
+MAX_SEMICOLON = 3
 
-    # 2. Variable to store new line
+
+def shorten_markup(file_path):
+    # 1. Read from file
+    old_lines = open(file_path, 'r').readlines()
     new_lines = []
-    continuous_line = ""
+    current_line = ''
 
-    for line in input:
-        # 3. Strip space and EOL
+    for line in old_lines:
+        # 2. Remove space and EOL
         line = line.lstrip(' ')
         line = line.rstrip('\n')
         line = line.rstrip(' ')
 
-        # 4. Remove empty line
+        # 3. Ignore empty line
         if line == "":
             continue
 
-        # 5. Check if multi line is possible
-        if category.lower() == 'semicolon':
-            if line[-1] != ';' and line[-1] != '}':  # is multi line
-                continuous_line += line.rstrip('\n') + ' '
-                continue
-            elif continuous_line != '' and line != '}':
-                continuous_line += line
-                line = continuous_line
-        elif category.lower() == 'markup':
+        # 4. Check if multi line is possible
+        total_char = len(current_line) + len(line)     
+        if total_char <= MAX_CHAR:
             if line[-2:] != '/>' and line[-1] != ">":
-                continuous_line += line.rstrip('\n') + ' '
+                current_line += line.rstrip('\n') + ' '
                 continue
             else:
-                continuous_line += line
-                line = continuous_line
+                current_line += line
+                line = current_line
+        else:
+            line, current_line = current_line, line  # swap
 
-        # 6. Add if all condition satisfy
+        # 5. Add if all condition satisfy
         if line == '}':
-            new_lines[len(new_lines) - 1] = new_lines[len(new_lines) -
-                                                      1].rstrip('\n') + ' }\n'
+            new_lines[len(new_lines) - 1] = new_lines[len(new_lines) - 1].rstrip('\n') + ' }\n'
         else:
             new_lines.append(line + '\n')
 
-        # 7. Reset `continuous_line`
-        continuous_line = ''
+        # 6. Reset `current_line`
+        current_line = ''
+    # 7. Check if last current_line is not empty
+    if current_line != '':
+        new_lines.append(current_line)
 
-    # 8. Check if last continuous_line is ''
-    if continuous_line != '':
-        new_lines.append(continuous_line)
+    return new_lines
 
-    # 9. Write to a file
-    output.writelines(new_lines)
-    output.close()
-    click.echo(f"Your shortened code location is {output_file_path}")
+
+def shorten_semicolon(file_path):
+    # 1. Read from file
+    old_lines = open(file_path, 'r').readlines()
+    new_lines = []
+    current_line = ''
+
+    for line in old_lines:
+        # 2. Remove space and EOL
+        line = line.lstrip(' ')
+        line = line.rstrip('\n')
+        line = line.rstrip(' ')
+
+        # 3. Ignore empty and single line comment
+        if line == "" or line[:2] == '//':
+            continue
+
+        # 4. Check whether multi line is possible
+        total_char = len(current_line) + len(line)
+        current_line_semicolon = len(re.findall(';', current_line))
+        if total_char <= MAX_CHAR and current_line_semicolon < MAX_SEMICOLON:
+            if line[-1] != ';' and line[-1] != '}':  # indicate multi line is possible
+                current_line += line.rstrip('\n') + ' '
+                continue
+            elif line[-1] == ';':
+                current_line += line.rstrip('\n') + ' '
+                continue
+            elif current_line != '' and line != '}':  # push char '}' with current_line
+                current_line += line
+                line = current_line
+        else:
+            line, current_line = current_line, line  # swap variable
+
+        # 5. Add if all condition satisfy
+        if line == '}':
+            new_lines[len(new_lines) - 1] = new_lines[len(new_lines) - 1].rstrip('\n') + ' }\n'  # ignore MAX_CHAR rule
+        else:
+            new_lines.append(line + '\n')
+
+        # 6. Reset `current_line`
+        current_line = ''
+
+    # 7. Check if last current_line is not empty
+    if current_line != '':
+        new_lines.append(current_line)
+
+    return new_lines
+
+
+def create_shortened_file(file_dict_list):
+    for file_dict in file_dict_list:
+        file_path = file_dict['path']
+        lines = file_dict['lines']
+
+        seperator_position = file_path.rfind('.')
+        output_path = file_path[:seperator_position] + '_short' + file_path[seperator_position:]
+
+        output = open(output_path, 'w')
+        output.writelines(lines)
+        output.close()
+
+
+def create_docx(file_dict_list, name, id, title):
+    document = docx.Document()
+
+    style = document.styles['Normal']
+    font = style.font
+    font.name = 'Courier New'
+    font.size = Pt(10)
+
+    section = document.sections[0]
+    section.left_margin = Cm(1)
+    section.right_margin = Cm(1)
+    section.top_margin = Cm(1)
+    section.bottom_margin = Cm(1)
+    section.page_height = Cm(29.7)
+    section.page_width = Cm(21.0)
+
+    header = section.header
+    footer = section.footer
+    header.paragraphs[0].text = f'{name} - {id} | {title}'
+
+
+    for file_dict in file_dict_list:
+        file_path = file_dict['path']
+        lines = file_dict['lines']
+
+        # path
+        p = document.add_paragraph('')
+        p.add_run(file_path).bold = True
+        p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+        # line
+        l = document.add_paragraph(lines)
+        l.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+    document.save('result.docx')
+
+
+
+@click.command()
+@click.argument('path', type=click.Path(exists=True))
+@click.option('--markup', is_flag=True, help='Indicate code is markup')
+@click.option('--max-char', default=90, help='Maximum character in a line.')
+@click.option('--max-semicolon', default=3, help='Maximum semicolon in a line.')
+@click.option('--to-docx', is_flag=True, help='Generate .docx contains shortened code')
+@click.option('--docx-name', default='I. J.')
+@click.option('--docx-id', default='21xyyzzzzz')
+@click.option('--docx-title', default='Lorem Ipsum N')
+def main(path, markup, max_char, max_semicolon, to_docx, docx_name, docx_id, docx_title):
+    """Simple program that save your money"""
+    # Set var
+    global MAX_CHAR
+    global MAX_SEMICOLON
+    MAX_CHAR = max_char
+    MAX_SEMICOLON = max_semicolon
+    file_dict_list = []
+
+    # Check if path is file or directory, then add all absolute path
+    file_paths = []
+    if os.path.isfile(path):
+        file_paths.append(os.path.abspath(path))
+    else:
+        for (dirpath, dirnames, filenames) in os.walk(path):
+            for filename in filenames:
+                file_paths.append(os.path.abspath(os.path.join(dirpath, filename)))
+
+    # Shorten each file
+    for file_path in file_paths:
+        try:
+            new_lines = []
+            if markup == True:
+                new_lines = shorten_markup(file_path)
+            else:
+                new_lines = shorten_semicolon(file_path)
+            
+            file_dict_list.append({
+                'path': file_path,
+                'lines': new_lines
+            })
+        except Exception as ex:
+            click.echo(f'Something went wrong when shortening code at {file_path}')
+
+    if to_docx:
+        create_docx(file_dict_list, docx_name, docx_id, docx_title)
+    else:
+        create_shortened_file(file_dict_list)
 
 
 if __name__ == '__main__':
