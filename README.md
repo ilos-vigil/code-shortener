@@ -9,9 +9,10 @@ Code Shortener is simple CLI application to save your money made with [click](ht
 * Python 3
 * Click
 * Python-docx
+* Requests
 
 ```
-pip install click python-docx
+pip install click python-docx requests
 ```
 
 ## Bug / Missing Feature
@@ -48,7 +49,7 @@ python main.py ./index.php
 * Shotern single markup file
 
 ```
-python main.py ./index.html --markup
+python main.py ./index.html --format=markup
 ```
 
 * Shorten semicolon files in directory
@@ -60,7 +61,13 @@ python main.py ./model
 * Shorten markup files in directory
 
 ```
-python main.py ./view --markup
+python main.py ./view --format=markup
+```
+
+* **Only** create docs from directory
+
+```
+python main.py ./src --format=same --to-docx
 ```
 
 ### Advance example
@@ -77,8 +84,8 @@ python main.py ./index.php --max_char=120 --max_semicolon=4
 python main.py ./src --to-docx --docx-name="Bob" --docx-id=123 --docx-title="Fibonacci Code"
 ```
 
-* Create .docx from markup
+* Create .docx from markup & specify filename
 
 ```
-python main.py ./view --markup --to-docx --docx-name="Bob" --docx-id=123 --docx-title="Web UI"
+python main.py ./view --format=markup --to-docx --docx-filename=result.docx --docx-name="Bob" --docx-id=123 --docx-title="Web UI"
 ```

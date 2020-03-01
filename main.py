@@ -1,6 +1,7 @@
 import click
 import os
 import re
+import requests
 import docx
 from docx.shared import Cm, Pt
 from docx.enum.text import WD_LINE_SPACING
@@ -100,6 +101,17 @@ def shorten_semicolon(file_path):
     return new_lines
 
 
+def shorten_js(file_path):
+    # 1. Read from file
+    old_code = open(file_path, 'r').read()
+    new_code = requests.post('https://javascript-minifier.com/raw', data={'input': old_code}).text
+    new_lines = []
+
+    for new_line in new_code.split(';'):
+        new_lines.append(f'{new_line};\n')
+
+    return new_lines
+
 def create_shortened_file(file_dict_list):
     for file_dict in file_dict_list:
         file_path = file_dict['path']
@@ -113,7 +125,7 @@ def create_shortened_file(file_dict_list):
         output.close()
 
 
-def create_docx(file_dict_list, name, id, title):
+def create_docx(file_dict_list, filename, name, id, title):
     document = docx.Document()
 
     style = document.styles['Normal']
@@ -147,20 +159,21 @@ def create_docx(file_dict_list, name, id, title):
         l = document.add_paragraph(lines)
         l.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
-    document.save('result.docx')
+    document.save(filename)
 
 
 
 @click.command()
 @click.argument('path', type=click.Path(exists=True))
-@click.option('--markup', is_flag=True, help='Indicate code is markup')
+@click.option('--format', default='semicolon')
 @click.option('--max-char', default=90, help='Maximum character in a line.')
 @click.option('--max-semicolon', default=3, help='Maximum semicolon in a line.')
 @click.option('--to-docx', is_flag=True, help='Generate .docx contains shortened code')
+@click.option('--docx-filename', default='shortened.docx')
 @click.option('--docx-name', default='I. J.')
 @click.option('--docx-id', default='21xyyzzzzz')
 @click.option('--docx-title', default='Lorem Ipsum N')
-def main(path, markup, max_char, max_semicolon, to_docx, docx_name, docx_id, docx_title):
+def main(path, format, max_char, max_semicolon, to_docx, docx_filename, docx_name, docx_id, docx_title):
     """Simple program that save your money"""
     # Set var
     global MAX_CHAR
@@ -178,15 +191,20 @@ def main(path, markup, max_char, max_semicolon, to_docx, docx_name, docx_id, doc
             for filename in filenames:
                 file_paths.append(os.path.abspath(os.path.join(dirpath, filename)))
 
+
     # Shorten each file
     for file_path in file_paths:
         try:
             new_lines = []
-            if markup == True:
+            if format.lower() == 'semicolon':
                 new_lines = shorten_markup(file_path)
-            else:
+            elif format.lower() == 'markup':
                 new_lines = shorten_semicolon(file_path)
-            
+            elif format.lower() == 'js':
+                new_lines = shorten_js(file_path)
+            elif format.lower() == 'same':
+                new_lines = open(file_path).readlines()
+
             file_dict_list.append({
                 'path': file_path,
                 'lines': new_lines
@@ -195,7 +213,7 @@ def main(path, markup, max_char, max_semicolon, to_docx, docx_name, docx_id, doc
             click.echo(f'Something went wrong when shortening code at {file_path}')
 
     if to_docx:
-        create_docx(file_dict_list, docx_name, docx_id, docx_title)
+        create_docx(file_dict_list, docx_filename, docx_name, docx_id, docx_title)
     else:
         create_shortened_file(file_dict_list)
 
