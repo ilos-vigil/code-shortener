@@ -154,10 +154,15 @@ def create_docx(file_dict_list, filename, name, id, title):
         p = document.add_paragraph('')
         p.add_run(file_path).bold = True
         p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        p.paragraph_format.space_before = Cm(0)
+        p.paragraph_format.space_after = Cm(0)
 
-        # line
-        l = document.add_paragraph(lines)
-        l.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        # lines
+        for line in lines:
+            l = document.add_paragraph(line)
+            l.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            l.paragraph_format.space_before = Cm(0)
+            l.paragraph_format.space_after = Cm(0)
 
     document.save(filename)
 
@@ -203,7 +208,8 @@ def main(path, format, max_char, max_semicolon, to_docx, docx_filename, docx_nam
             elif format.lower() == 'js':
                 new_lines = shorten_js(file_path)
             elif format.lower() == 'same':
-                new_lines = open(file_path).readlines()
+                f = open(file_path)
+                new_lines = [line.rstrip('\n') for line in f]
 
             file_dict_list.append({
                 'path': file_path,
